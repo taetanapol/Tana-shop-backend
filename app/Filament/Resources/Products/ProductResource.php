@@ -8,6 +8,7 @@ use Filament\Actions;
 use Filament\Forms;
 use Filament\Schemas\Components\Group;
 use Filament\Schemas\Components\Section;
+use Filament\Schemas\Components\View;
 use Filament\Schemas\Components\Utilities\Set;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
@@ -33,7 +34,8 @@ class ProductResource extends Resource
                             ->label('ชื่อสินค้า')
                             ->required()
                             ->live(onBlur: true)
-                            ->afterStateUpdated(fn (string $operation, $state, Set $set) => 
+                            ->afterStateUpdated(
+                                fn(string $operation, $state, Set $set) =>
                                 $operation === 'create' ? $set('slug', Str::slug($state)) : null
                             ),
 
@@ -47,6 +49,15 @@ class ProductResource extends Resource
                         Forms\Components\RichEditor::make('description')
                             ->label('รายละเอียดสินค้า')
                             ->columnSpanFull(),
+
+                        Forms\Components\FileUpload::make('images')
+                            ->label('รูปภาพสินค้า')
+                            ->multiple()
+                            ->image()
+                            ->directory('products')
+                            ->reorderable()
+                            ->columnSpanFull(),
+
                     ])->columnSpan(2),
 
                 Group::make()
@@ -71,15 +82,10 @@ class ProductResource extends Resource
                                 Forms\Components\Toggle::make('is_active')
                                     ->label('เปิดใช้งานสินค้า')
                                     ->default(true),
-                                
-                                // อัปโหลดรูปภาพสินค้า (รองรับการลากวาง และอัปโหลดหลายรูป)
-                                Forms\Components\FileUpload::make('images')
-                                    ->label('รูปภาพสินค้า')
-                                    ->multiple()
-                                    ->image()
-                                    ->directory('products')
-                                    ->reorderable()
-                                    ->columnSpanFull(),
+
+                                View::make('filament.components.product-images-slider')
+                                    ->columnSpanFull()
+                                    ->visible(fn($record) => $record && !empty($record->images)),
                             ]),
                     ])->columnSpan(1),
             ])->columns(3);
@@ -89,10 +95,6 @@ class ProductResource extends Resource
     {
         return $table
             ->columns([
-                Tables\Columns\ImageColumn::make('images')
-                    ->label('รูปภาพ')
-                    ->square()
-                    ->stacked(),
 
                 Tables\Columns\TextColumn::make('name')
                     ->label('ชื่อสินค้า')
@@ -104,11 +106,16 @@ class ProductResource extends Resource
                     ->money('THB')
                     ->sortable(),
 
+                Tables\Columns\ImageColumn::make('images')
+                    ->label('รูปภาพ')
+                    ->square()
+                    ->stacked(),
+
                 Tables\Columns\TextColumn::make('stock')
                     ->label('คงเหลือในสต็อก')
                     ->sortable()
                     ->badge()
-                    ->color(fn (int $state): string => match (true) {
+                    ->color(fn(int $state): string => match (true) {
                         $state <= 5 => 'danger',
                         $state <= 20 => 'warning',
                         default => 'success',
@@ -138,7 +145,7 @@ class ProductResource extends Resource
                 ]),
             ]);
     }
-    
+
     public static function getPages(): array
     {
         return [
